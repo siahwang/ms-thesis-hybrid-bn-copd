@@ -12,16 +12,13 @@ based on the processed dataset (`lr_ready_data`).
 - **Figures below** summarize the key outputs.
 
 ---
-
 ## 🧠 Bayesian Network (BN) Structures
 
 ### Averaged BN-B Structure
-![Averaged BN-B Structure](<img width="477" height="381" alt="image" src="https://github.com/user-attachments/assets/81ad7cbe-c24e-4ac1-aa5e-417aca18b4e0" />
-)
+![Averaged BN-B Structure](images/bn_b_avg.svg)
 
 ### Averaged BN-WB Structure
-![Averaged BN-WB Structure](<img width="477" height="381" alt="image" src="https://github.com/user-attachments/assets/1e0959ce-d340-43a6-babc-54f257770d87" />
-)
+![Averaged BN-WB Structure](images/bn_wb_avg.svg)
 
 *(Note: These show averaged directed acyclic graphs (DAGs) learned via bootstrapped structure averaging.)*
 
@@ -32,7 +29,7 @@ based on the processed dataset (`lr_ready_data`).
 Below is the summary output from the logistic regression model:
 
 | Variable | Estimate | Std. Error | z value | Pr(>|z|) | Significance |
-|-----------|-----------|------------|----------|-----------|---------------|
+|:-----------|-----------:|------------:|----------:|-----------:|:---------------|
 | (Intercept) | -0.17200 | 0.20386 | -0.844 | 0.398843 | — |
 | age60s | 0.55542 | 0.08238 | 6.742 | 1.56e-11 | *** |
 | age70+ | 1.04219 | 0.11260 | 9.255 | < 2e-16 | *** |
@@ -47,16 +44,10 @@ Below is the summary output from the logistic regression model:
 | PM25_Grouplow | 0.27597 | 0.07168 | 3.850 | 0.000118 | *** |
 
 **Model metrics:**
-- Null deviance: 5391.3 on 3888 degrees of freedom  
-- Residual deviance: 4756.2 on 3877 degrees of freedom  
-- **AIC:** 4780.2  
-- Number of Fisher Scoring iterations: 4  
-
----
-
-### Logistic Regression Summary Output
-![Logistic Regression Summary](../images/LR_summary.png)
-
+- Null deviance: 5391.3 on 3888 degrees of freedom
+- Residual deviance: 4756.2 on 3877 degrees of freedom
+- **AIC:** 4780.2
+- Number of Fisher Scoring iterations: 4
 ---
 
 ## ⚠️ Note
