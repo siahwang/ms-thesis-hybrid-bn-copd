@@ -23,30 +23,40 @@ based on the processed dataset (`lr_ready_data`).
 
 
 ---
-## 📊 Logistic Regression (LR) Results
+<h2>📊 Logistic Regression (LR) Results</h2>
+<p>Below is the summary output from the logistic regression model:</p>
 
-Below is the summary output from the logistic regression model:
+<table>
+  <thead>
+    <tr>
+      <th>Variable</th><th style="text-align:right">Estimate</th>
+      <th style="text-align:right">Std. Error</th>
+      <th style="text-align:right">z value</th>
+      <th style="text-align:right">Pr(&gt;|z|)</th><th>Sig</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>(Intercept)</td><td style="text-align:right">-0.17200</td><td style="text-align:right">0.20386</td><td style="text-align:right">-0.844</td><td style="text-align:right">0.398843</td><td>—</td></tr>
+    <tr><td>age60s</td><td style="text-align:right">0.55542</td><td style="text-align:right">0.08238</td><td style="text-align:right">6.742</td><td style="text-align:right">1.56e-11</td><td>***</td></tr>
+    <tr><td>age70+</td><td style="text-align:right">1.04219</td><td style="text-align:right">0.11260</td><td style="text-align:right">9.255</td><td style="text-align:right">&lt;2e-16</td><td>***</td></tr>
+    <tr><td>sexMale</td><td style="text-align:right">0.88034</td><td style="text-align:right">0.11236</td><td style="text-align:right">7.835</td><td style="text-align:right">4.69e-15</td><td>***</td></tr>
+    <tr><td>IncomeLow</td><td style="text-align:right">0.25949</td><td style="text-align:right">0.07818</td><td style="text-align:right">3.319</td><td style="text-align:right">0.000903</td><td>***</td></tr>
+    <tr><td>OccupationRiskNon-at-risk</td><td style="text-align:right">-0.11418</td><td style="text-align:right">0.08634</td><td style="text-align:right">-1.322</td><td style="text-align:right">0.186022</td><td>—</td></tr>
+    <tr><td>AsthmaYes</td><td style="text-align:right">1.79506</td><td style="text-align:right">0.48329</td><td style="text-align:right">3.714</td><td style="text-align:right">0.000204</td><td>***</td></tr>
+    <tr><td>smokingFormer Smoker</td><td style="text-align:right">-0.53007</td><td style="text-align:right">0.10587</td><td style="text-align:right">-5.007</td><td style="text-align:right">5.53e-07</td><td>***</td></tr>
+    <tr><td>smokingNon-smoker</td><td style="text-align:right">-0.85861</td><td style="text-align:right">0.12816</td><td style="text-align:right">-6.699</td><td style="text-align:right">2.09e-11</td><td>***</td></tr>
+    <tr><td>Packyearslow</td><td style="text-align:right">-0.19741</td><td style="text-align:right">0.13538</td><td style="text-align:right">-1.458</td><td style="text-align:right">0.144804</td><td>—</td></tr>
+    <tr><td>BMI_GroupObese</td><td style="text-align:right">-0.30816</td><td style="text-align:right">0.07177</td><td style="text-align:right">-4.294</td><td style="text-align:right">1.76e-05</td><td>***</td></tr>
+    <tr><td>PM25_Grouplow</td><td style="text-align:right">0.27597</td><td style="text-align:right">0.07168</td><td style="text-align:right">3.850</td><td style="text-align:right">0.000118</td><td>***</td></tr>
+  </tbody>
+</table>
 
-| Variable                     | Estimate  | Std. Error | z value | Pr(>|z|)    | Significance |
-|------------------------------|----------:|-----------:|--------:|-------------|-------------|
-| (Intercept)                  | -0.17200  | 0.20386    | -0.844 | 0.398843     | —           |
-| age60s                       | 0.55542   | 0.08238    | 6.742  | 1.56e-11     | ***         |
-| age70+                       | 1.04219   | 0.11260    | 9.255  | < 2e-16      | ***         |
-| sexMale                      | 0.88034   | 0.11236    | 7.835  | 4.69e-15     | ***         |
-| IncomeLow                    | 0.25949   | 0.07818    | 3.319  | 0.000903     | ***         |
-| OccupationRiskNon-at-risk    | -0.11418  | 0.08634    | -1.322 | 0.186022     | —           |
-| AsthmaYes                    | 1.79506   | 0.48329    | 3.714  | 0.000204     | ***         |
-| smokingFormer Smoker         | -0.53007  | 0.10587    | -5.007 | 5.53e-07     | ***         |
-| smokingNon-smoker            | -0.85861  | 0.12816    | -6.699 | 2.09e-11     | ***         |
-| Packyearslow                 | -0.19741  | 0.13538    | -1.458 | 0.144804     | —           |
-| BMI_GroupObese               | -0.30816  | 0.07177    | -4.294 | 1.76e-05     | ***         |
-| PM25_Grouplow                | 0.27597   | 0.07168    | 3.850  | 0.000118     | ***         |
-
-**Model metrics:**  
-- Null deviance: 5391.3 on 3888 degrees of freedom  
-- Residual deviance: 4756.2 on 3877 degrees of freedom  
-- **AIC:** 4780.2  
-- Number of Fisher Scoring iterations: 4  
+<ul>
+  <li>Null deviance: 5391.3 on 3888 degrees of freedom</li>
+  <li>Residual deviance: 4756.2 on 3877 degrees of freedom</li>
+  <li><strong>AIC:</strong> 4780.2</li>
+  <li>Fisher scoring iterations: 4</li>
+</ul>
 
 ---
 
