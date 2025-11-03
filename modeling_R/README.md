@@ -29,7 +29,7 @@ based on the processed dataset (`lr_ready_data`).
 Below is the summary output from the logistic regression model:
 
 | Variable | Estimate | Std. Error | z value | Pr(>|z|) | Significance |
-|-----------|----------:|-----------:|--------:|---------:|--------------:|
+|:-----------|-----------:|------------:|----------:|-----------:|:---------------:|
 | (Intercept) | -0.17200 | 0.20386 | -0.844 | 0.398843 | — |
 | age60s | 0.55542 | 0.08238 | 6.742 | 1.56e-11 | *** |
 | age70+ | 1.04219 | 0.11260 | 9.255 | < 2e-16 | *** |
