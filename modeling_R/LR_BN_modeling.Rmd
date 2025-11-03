@@ -1,0 +1,278 @@
+---
+title: "COPD Modeling Pipeline (Logistic Regression and Bayesian Networks using ADASYN data)"
+author: "Sia Hwang"
+date: "2025-11-03"
+output: html_document
+    
+---
+
+
+```{r setup, include=FALSE}
+# Set global options for R Markdown rendering
+# echo = TRUE: Show R code in the output HTML
+# message = FALSE: Suppress package loading messages
+# warning = FALSE: Suppress warnings
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+# Load all required libraries at the beginning
+library(dplyr)
+library(bnlearn)
+library(broom)
+library(Rgraphviz)
+library(haven)
+```
+
+# Overview
+
+This report describes the COPD prediction pipeline that combines:
+
+* ADASYN-based oversampling for class imbalance handling
+* Logistic Regression (LR) for feature significance
+* Bayesian Network (BN) models:
+    * BN-B (Blacklist-based)
+    * BN-WB (Whitelist-based)
+* MAP Imputation for missing values
+* Bootstrap-based stability analysis for network robustness
+
+# Step 1: Load and Inspect Data
+
+Load the ADASYN-oversampled dataset and inspect its structure and target distribution.
+
+```{r load_data}
+# Load the pre-processed and oversampled data
+adasyn_data <- read.csv("/Users/hwangsia/adasyn_data_decoded.csv")
+
+# Display the structure of the data
+str(adasyn_data)
+
+# Check the distribution of the target variable (COPD)
+table(adasyn_data$COPD)
+```
+
+# Step 2: Clean Missing Values
+
+Convert custom missing tokens (e.g., "nan", "NA", "") into standard R `NA` values and ensure all variables are treated as factors for categorical analysis.
+
+```{r clean_missing_values}
+# Define a list of strings that represent missing values
+missing_tokens <- c("nan", "NaN", "NA", "", "NAN", "Nan")
+
+for (v in names(adasyn_data)) {
+  # Convert column to character to handle mixed types
+  col_chr <- as.character(adasyn_data[[v]])
+  # Replace missing tokens with standard NA
+  col_chr[col_chr %in% missing_tokens] <- NA
+  # Convert back to factor
+  adasyn_data[[v]] <- as.factor(col_chr)
+}
+
+# Generate a report of missing values
+missing_report <- data.frame(
+  variable = names(adasyn_data),
+  n_missing = sapply(adasyn_data, function(x) sum(is.na(x))),
+  prop_missing = round(sapply(adasyn_data, function(x) mean(is.na(x))), 4)
+)
+
+# Print the missing value summary as a clean table
+knitr::kable(missing_report, caption = "Missing Value Summary (Raw ADASYN Data)")
+```
+
+# Step 3: Mode Imputation (for Training)
+
+BN structure learning algorithms require a complete dataset (no `NA` values). We create a training-specific dataset (`adasyn_data_clean`) by imputing `NA` values with the mode (most frequent category). This is done for predictors only.
+
+```{r mode_imputation}
+# Helper function to find the mode of a vector
+get_mode <- function(v) {
+  tab <- table(v, useNA = "no")
+  names(tab)[which.max(tab)]
+}
+
+# Create a clean copy of the data for imputation
+adasyn_data_clean <- adasyn_data
+
+# Loop over predictors (all columns except COPD) and impute NAs
+for (v in setdiff(names(adasyn_data_clean), "COPD")) {
+  if (any(is.na(adasyn_data_clean[[v]]))) {
+    m <- get_mode(adasyn_data_clean[[v]])
+    adasyn_data_clean[[v]][is.na(adasyn_data_clean[[v]])] <- m
+  }
+}
+```
+
+# Step 4: Logistic Regression (Feature Significance)
+
+Run a Logistic Regression model on the mode-imputed data to identify statistically significant predictors. This informs the `whitelist` for the BN-WB model.
+
+```{r logistic_regression}
+# Ensure all variables are factors for the GLM
+lr_ready_data <- adasyn_data_clean %>%
+  mutate(across(everything(), as.factor))
+
+# Fit the GLM
+fit_glm <- glm(
+  COPD ~ age + sex + Income + OccupationRisk + Asthma +
+    smoking + Packyears + BMI_Group + PM25_Group,
+  data = lr_ready_data,
+  family = binomial(link = "logit")
+)
+
+# Print the model summary (coefficients, p-values, etc.)
+summary(fit_glm)
+```
+
+# Step 5: Bayesian Network (BN-B Model)
+
+Create the first Bayesian Network model (BN-B), which relies only on a `blacklist` to constrain the structure learning.
+
+## 5.1 Define Blacklist
+
+Block edges that violate the pre-defined causal/temporal hierarchy (e.g., `COPD` cannot cause `age`).
+
+```{r bnb_blacklist}
+layer1 <- c("age","sex")
+layer2 <- c("PM25_Group")
+layer3 <- c("OccupationRisk","Income")
+layer4 <- c("Asthma","BMI_Group","smoking","Packyears")
+target <- c("COPD")
+
+vars_all <- c(layer1, layer2, layer3, layer4, target)
+
+# Helper function to create hierarchical blacklist
+mk_layer_blacklist <- function(layers) {
+  bl <- data.frame(from=character(), to=character())
+  for (i in seq_along(layers)) {
+    for (j in seq_len(i-1)) {
+      bl <- rbind(bl, expand.grid(from = layers[[i]], to = layers[[j]]))
+    }
+  }
+  bl
+}
+
+# Combine hierarchical blacklist with the rule that 'COPD' cannot be a parent
+blacklist_BN_B <- rbind(
+  mk_layer_blacklist(list(layer1, layer2, layer3, layer4, target)),
+  expand.grid(from = target, to = setdiff(vars_all, target))
+) %>% distinct()
+```
+
+## 5.2 Learn Structure & Parameters
+
+Learn the BN-B structure using the `pc.stable` algorithm and fit parameters using Bayesian estimation.
+
+```{r bnb_learn}
+bn_B_structure <- pc.stable(
+  adasyn_data_clean,
+  blacklist = blacklist_BN_B,
+  test = "mi" # Mutual Information test for categorical data
+)
+
+bn_B_fitted <- bn.fit(bn_B_structure, data = adasyn_data_clean, method = "bayes", iss = 1)
+```
+
+# Step 6: MAP Imputation (Helper Function)
+
+Define the function for MAP (Maximum A Posteriori) imputation. This function uses a trained BN to infer the most probable value for a missing cell, considering the other variables in that row as evidence.
+
+```{r map_imputation_function}
+# This helper function will be used later in the CV pipeline (not run here)
+impute_one_cell_map <- function(row_values, target_var, bn_model, n_samples = 5000) {
+  
+  # Use all non-NA values as evidence, excluding the target variable itself
+  ev_list <- as.list(row_values)
+  ev_list[[target_var]] <- NULL
+  ev_list <- ev_list[!is.na(ev_list)]
+  
+  # Use cpdist (Likelihood Weighting) to sample from the posterior distribution
+  samp_df <- suppressWarnings(cpdist(
+    bn_model, nodes = target_var, evidence = ev_list,
+    method = "lw", n = n_samples
+  ))
+  
+  # Return the mode (most frequent value) of the samples, which is the MAP estimate
+  if (nrow(samp_df) == 0) return(NA_character_)
+  tab <- table(samp_df[[target_var]], useNA = "no")
+  names(tab)[which.max(tab)]
+}
+```
+
+# Step 7: BN-B Bootstrap (1500 iterations)
+
+Assess the structural stability of the BN-B model by learning 1500 networks on bootstrap resamples of the data. This provides confidence scores (`strength`) for each edge.
+
+```{r bnb_bootstrap}
+set.seed(42)
+
+boot_res <- boot.strength(
+  data = adasyn_data_clean,
+  R = 1500,
+  algorithm = "pc.stable",
+  algorithm.args = list(test = "mi", blacklist = blacklist_BN_B)
+)
+
+# Create the averaged network based on a strength threshold of 0.3
+bn_B_avg <- averaged.network(boot_res, threshold = 0.3)
+```
+
+# Step 8: BN-WB Model (Whitelist + Blacklist)
+
+Create the BN-WB model, which adds a `whitelist` to the BN-B constraints. The whitelist forces the inclusion of edges from statistically significant predictors (identified by LR in Step 4) to the `COPD` node.
+
+```{r bnwb_learn}
+# Define the whitelist (all predictors except OccupationRisk and Packyears)
+vars_to_force <- setdiff(vars_all, c(target, "OccupationRisk", "Packyears"))
+whitelist_BN_WB <- expand.grid(from = vars_to_force, to = target)
+
+# Learn the structure using both blacklist and whitelist
+bn_WB_structure <- pc.stable(
+  adasyn_data_clean,
+  blacklist = blacklist_BN_B,
+  whitelist = whitelist_BN_WB,
+  test = "mi"
+)
+
+# Fit the parameters
+bn_WB_fitted <- bn.fit(bn_WB_structure, data = adasyn_data_clean, method = "bayes", iss = 1)
+```
+
+# Step 9: BN-WB Bootstrap and Stability Analysis
+
+Assess the structural stability of the BN-WB model using the same 1500-iteration bootstrap approach.
+
+```{r bnwb_bootstrap}
+set.seed(42)
+
+boot_res_WB <- boot.strength(
+  data = adasyn_data_clean,
+  R = 1500,
+  algorithm = "pc.stable",
+  algorithm.args = list(
+    test = "mi",
+    blacklist = blacklist_BN_B,
+    whitelist = whitelist_BN_WB
+  )
+)
+
+# Create the averaged network
+bn_WB_avg <- averaged.network(boot_res_WB, threshold = 0.3)
+```
+
+# Step 10: Visualization
+
+Plot the final, averaged network structures for both BN-B and BN-WB. These graphs represent the stable, consensus relationships found during bootstrapping.
+
+```{r visualization}
+# Plot the averaged BN-B structure
+graphviz.plot(bn_B_avg, layout = "dot", main = "Averaged BN-B Structure")
+
+# Plot the averaged BN-WB structure
+graphviz.plot(bn_WB_avg, layout = "dot", main = "Averaged BN-WB Structure")
+```
+
+# Summary
+
+* ADASYN balanced the minority COPD class.
+* Mode imputation ensured no missing values for BN training.
+* BN-B captured unconstrained relationships based on data and blacklist.
+* BN-WB incorporated domain-informed links from LR analysis.
+* Bootstrap averaging enhanced structural robustness for final interpretation.
