@@ -13,6 +13,13 @@ based on the processed dataset (`lr_ready_data`).
 
 ---
 ## 🧠 Bayesian Network (BN) Structures
+### Averaged BN-B Structure
+![Averaged BN-B Structure](images/bn_b_avg.svg)
+
+### Averaged BN-WB Structure
+![Averaged BN-WB Structure](images/bn_wb_avg.svg)
+
+*(Note: These show averaged directed acyclic graphs (DAGs) learned via bootstrapped structure averaging.)*
 
 
 ---
